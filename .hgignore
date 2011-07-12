@@ -2,3 +2,4 @@ syntax: glob
 *.pyc
 example_project/test.db
 django_fileflatpages.egg-info/
+dist/
