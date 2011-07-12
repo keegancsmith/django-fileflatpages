@@ -1,0 +1,4 @@
+include setup.py README.rst MANIFEST.in LICENSE example_project/requirements.txt
+recursive-include example_project/app/templates *
+recursive-include example_project/flatpages *
+global-exclude *~
