@@ -1,16 +1,71 @@
-========================
- Django File Flat Pages
-========================
+====================
+django-fileflatpages
+====================
 
-This is a Django App which makes FlatPage fixtures nicer to edit and
-store. This is accomplished through the Django command *loadflatpages*.
+This is a Django app that makes fixtures for FlatPages more convenient.
+
+One of the main drawbacks with ``django.contrib.flatpages`` is that the only
+way to store your flat pages with your source files is as a
+fixture. ``django-fileflatpages`` solves this problem by inserting files as
+FlatPages from your apps.
+
+What django-fileflatpages gives you is the Django management command
+*loadflatpages*. For each app in your projects INSTALLED_APPS, *loadflatpages*
+will look for the directory ``flatpages``. If it finds a flatpages directory,
+it adds each file in the flatpages directory as a flatpage.
+
+The ``FlatPage`` attributes are specified using comments at the top of each
+file. ``django-fileflatpages`` starts at the first line, and for each line it
+looks for ``attribute = value`` comments. As soon as ``django-fileflatpages``
+encounters a non-comment line, it stops looking for further comments.
+
+For example::
+
+  .. -*- mode: rst -*-
+  .. url = /about/
+  .. title = About
+  .. template_name = flatpages/rst.html
+  .. enable_comments = False
+
+  Hello World
+
+creates::
+
+  FlatPage(url='/about', title='About', template_name='flatpages/rst.html',
+           enable_comments=False, sites=[settings.SITE_ID],
+           content=file(fixture_path).read())
+
+The main website for django-fileflatpages is
+https://bitbucket.org/keegan_csmith/django-fileflatpages but there is also a
+git mirror at https://github.com/keegancsmith/django-fileflatpages
+
+
+Installation
+============
+
+* Install ``django-fileflatpages`` with setuptools::
+
+    python setup.py install
+
+* Add ``"fileflatpages"`` to your ``INSTALLED_APPS`` setting::
+
+    INSTALLED_APPS = [
+        # ...
+        "fileflatpages",
+    ]
+
+* Make sure you have also enabled flatpages for your
+  project. https://docs.djangoproject.com/en/dev/ref/contrib/flatpages/
+
+Now when you run ``django-admin.py loadflatpages`` all installed apps will
+have there flatpages added.
 
 
 Example Site
 ============
 
-An example project is stored under `example_project` directory. See the
-directory `example_project/app/flatpages` for the flatpages that get added to
+An example project is stored under ``example_project`` directory. See the
+directory ``example_project/app/flatpages`` for the flatpages that get added to
 the database. To get the example site up and running under a virtual
 environment follow these steps::
 

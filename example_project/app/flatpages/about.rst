@@ -1,6 +1,7 @@
 .. url = /about/
 .. title = About
 .. template_name = flatpages/rst.html
+.. enable_comments = False
 
 =======
  About
