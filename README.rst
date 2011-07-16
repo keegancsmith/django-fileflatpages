@@ -35,6 +35,10 @@ creates::
            enable_comments=False, sites=[settings.SITE_ID],
            content=file(fixture_path).read())
 
+There is one special field you can specify, ``remove_comments = True``. This
+will remove comment lines with field = value directives from the content that
+is stored in the database.
+
 The main website for django-fileflatpages is
 https://bitbucket.org/keegan_csmith/django-fileflatpages but there is also a
 git mirror at https://github.com/keegancsmith/django-fileflatpages
