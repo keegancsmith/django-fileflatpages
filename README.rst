@@ -47,9 +47,9 @@ git mirror at https://github.com/keegancsmith/django-fileflatpages
 Installation
 ============
 
-* Install ``django-fileflatpages`` with setuptools::
+* Install ``django-fileflatpages`` with your favourite python package manager::
 
-    python setup.py install
+    pip install django-fileflatpages
 
 * Add ``"fileflatpages"`` to your ``INSTALLED_APPS`` setting::
 
