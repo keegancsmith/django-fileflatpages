@@ -9,57 +9,78 @@ from django.db.models import get_apps
 from fileflatpages.models import FileFlatPage
 
 
-class Command(BaseCommand):
-    help = 'Installs the flatpage fixtures in the database.'
-    option_list = BaseCommand.option_list
+class FileFlatPageParser(object):
 
     comment_re = re.compile(r'^(#|\.\.|<!---?|//)(.*?)(-?-->)?$')
+    fieldvalue_re = None
+
     required_fields = ('url', 'title')
     other_fields = ('enable_comments', 'template_name', 'registration_required')
+    bool_fields = ('enable_comments', 'registration_required')
 
-    def __init__(self, *args, **kwargs):
-        super(Command, self).__init__(*args, **kwargs)
-        fields = '|'.join(self.required_fields + self.other_fields)
-        self.keyvalue_re = re.compile(r'^\s*(%s)\s*(?:=|:)(.*)$' % fields)
+    def __init__(self, path):
+        self.path = path
+        self.warnings = []
+        self.fields = {}
 
-    def add_fixture(self, app_name, flatpages_path, path):
-        file_path = os.path.join(flatpages_path, path)
-        fin = file(file_path)
-        lines = fin.readlines()
-        fin.close()
+        if FileFlatPageParser.fieldvalue_re is None:
+            fields = '|'.join(self.required_fields + self.other_fields)
+            fieldvalue_re = re.compile(r'^\s*(%s)\s*(?:=|:)(.*)$' % fields)
+            FileFlatPageParser.fieldvalue_re = fieldvalue_re
 
-        # Get the fields from the comments at the top of the file
-        fields = {}
-        for line in lines:
+        self.__calc_fields()
+
+    def __calc_fields(self):
+        for line in file(self.path):
+            # We only want to process the comments at the top of the file. We
+            # also will ignore comments which don't contain an field = value
             match = self.comment_re.match(line)
             if match is None:
                 break
-            match = self.keyvalue_re.match(match.group(2))
+            match = self.fieldvalue_re.match(match.group(2))
             if match is None:
                 continue
 
-            key, value = match.groups()
-            if key in fields:
-                self.stdout.write("WARNING: Key '%s' is repeated in file %s\n"
-                                  % (key, file_path))
-            fields[key] = value.strip()
+            field, value = match.groups()
+            value = value.strip()
 
-        # Check we have all the required fields
+            # Warn about potential mistakes
+            if field in self.fields:
+                self.warnings.append("Field '%s' is repeated" % field)
+            if field in self.bool_fields:
+                if value not in ('True', 'False'):
+                    self.warnings.append(
+                        "Field '%s' must be 'True' or 'False'" % field)
+                else:
+                    value = value == 'True'
+
+            self.fields[field] = value
+
+    def get_or_create(self, app_name, path):
+        # Check we have all the required fields, if not make self.fields empty
         for field in self.required_fields:
-            if field not in fields:
-                self.stdout.write("WARNING: Key '%s' is required but missing in %s\n"
-                                  % (field, file_path))
-                return False
+            if field not in self.fields:
+                self.warnings.append("Field '%s' is required but missing" % field)
+                return None
 
         # Set the fields on the model instance and save
         flatpage, _ = FileFlatPage.objects.get_or_create(app=app_name, path=path)
-        for field, value in fields.iteritems():
+        for field, value in self.fields.iteritems():
             setattr(flatpage, field, value)
-        flatpage.content = ''.join(lines)
+        flatpage.content = self.content
         flatpage.sites = [settings.SITE_ID]
-        flatpage.save()
 
-        return True
+        return flatpage
+
+    @property
+    def content(self):
+        with file(self.path) as f:
+            return f.read()
+
+
+class Command(BaseCommand):
+    help = 'Installs the flatpage fixtures in the database.'
+    option_list = BaseCommand.option_list
 
     def handle(self, *fixture_labels, **options):
         # Do this in a transaction
@@ -81,7 +102,16 @@ class Command(BaseCommand):
             self.stdout.write('Processing flatpage fixtures in %s\n'
                               % flatpages_path)
             for path in os.listdir(flatpages_path):
-                if self.add_fixture(app_name, flatpages_path, path):
+                ffpp = FileFlatPageParser(os.path.join(flatpages_path, path))
+                flatpage = ffpp.get_or_create(app_name, path)
+
+                # output warnings
+                for warning in ffpp.warnings:
+                    self.stdout.write('WARNING: %s in %s\n'
+                                      % (warning, ffpp.path))
+
+                if flatpage:
+                    flatpage.save()
                     self.stdout.write('Added flatpage fixture %s from %s\n'
                                       % (path, app_name))
 
