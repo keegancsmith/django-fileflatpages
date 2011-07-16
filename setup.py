@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
     name='django-fileflatpages',
-    version='0.1dev',
+    version='0.1',
     author='Keegan Carruthers-Smith',
     author_email='keegan.csmith@gmail.com',
     url='https://bitbucket.org/keegan_csmith/django-fileflatpages',
