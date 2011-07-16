@@ -16,15 +16,23 @@ class FileFlatPageParser(object):
 
     required_fields = ('url', 'title')
     other_fields = ('enable_comments', 'template_name', 'registration_required')
-    bool_fields = ('enable_comments', 'registration_required')
+    special_fields = ('remove_comments',)
+    bool_fields = ('enable_comments', 'registration_required', 'remove_comments')
+    all_fields = None
 
     def __init__(self, path):
         self.path = path
         self.warnings = []
         self.fields = {}
 
-        if FileFlatPageParser.fieldvalue_re is None:
-            fields = '|'.join(self.required_fields + self.other_fields)
+        # Remove lines with key = value comments from the content
+        self.remove_comments = False
+
+        if FileFlatPageParser.all_fields is None:
+            FileFlatPageParser.all_fields = (self.required_fields +
+                                             self.other_fields +
+                                             self.special_fields)
+            fields = '|'.join(self.all_fields)
             fieldvalue_re = re.compile(r'^\s*(%s)\s*(?:=|:)(.*)$' % fields)
             FileFlatPageParser.fieldvalue_re = fieldvalue_re
 
@@ -54,7 +62,10 @@ class FileFlatPageParser(object):
                 else:
                     value = value == 'True'
 
-            self.fields[field] = value
+            if field in self.special_fields:
+                setattr(self, field, value)
+            else:
+                self.fields[field] = value
 
     def get_or_create(self, app_name, path):
         # Check we have all the required fields, if not make self.fields empty
@@ -75,7 +86,21 @@ class FileFlatPageParser(object):
     @property
     def content(self):
         with file(self.path) as f:
-            return f.read()
+            if self.remove_comments:
+                lines = []
+                line_iter = iter(f)
+                for line in line_iter:
+                    match = self.comment_re.match(line)
+                    if match is None:
+                        lines.append(line)
+                        break
+                    match = self.fieldvalue_re.match(match.group(2))
+                    if match is None:
+                        lines.append(line)
+                lines.extend(line_iter)
+                return ''.join(lines)
+            else:
+                return f.read()
 
 
 class Command(BaseCommand):
